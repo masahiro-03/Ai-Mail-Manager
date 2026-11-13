@@ -27,6 +27,26 @@ COLUMNS = {
     "category": "カテゴリ", "priority": "優先度", "summary": "要約",
     "recommendation": "推奨対応", "gmail_link": "Gmailで開く",
 }
+
+# SQLite and classifiers use the stable internal values in CATEGORIES.  The
+# public UI intentionally shows shorter business-facing labels instead.
+CATEGORY_DISPLAY_NAMES = {
+    "システム障害・不具合": "システム障害",
+    "請求・支払い": "支払い",
+    "見積・契約": "契約",
+    "一般問い合わせ": "一般",
+    "その他": "その他",
+}
+CATEGORY_OPTIONS = tuple(CATEGORY_DISPLAY_NAMES[category] for category in CATEGORIES)
+CATEGORY_BY_DISPLAY_NAME = {label: category for category, label in CATEGORY_DISPLAY_NAMES.items()}
+
+
+def category_display_name(category):
+    return CATEGORY_DISPLAY_NAMES.get(category, category)
+
+
+def category_internal_name(label):
+    return CATEGORY_BY_DISPLAY_NAME.get(label, label)
 def local_time(value):
     return datetime.fromisoformat(value).astimezone(JST).strftime("%Y/%m/%d %H:%M JST") if value else "—"
 
@@ -41,6 +61,18 @@ def received_at_datetime(value):
 
 def sort_rows_by_received_at(rows, oldest_first=False):
     return sorted(rows, key=lambda row: received_at_datetime(row["received_at"]), reverse=not oldest_first)
+
+
+def filter_rows(rows, category_label=None, priority=None, query=""):
+    category = category_internal_name(category_label) if category_label else None
+    normalized_query = query.strip().casefold()
+    return [
+        row for row in rows
+        if (not category or row["category"] == category)
+        and (not priority or row["priority"] == priority)
+        and (not normalized_query or any(normalized_query in row[field].casefold()
+                                         for field in ("sender", "subject")))
+    ]
 
 
 def demo_store():
@@ -141,7 +173,7 @@ def dashboard(store, account, demo=False):
     total.metric("取得メール総数", len(rows))
     high.metric("高優先度", sum(row["priority"] == "高" for row in rows))
     last.metric("最終同期日時", "架空データ" if demo else local_time(store.last_sync(account)))
-    counts = pd.DataFrame({"カテゴリ": CATEGORIES, "件数": [
+    counts = pd.DataFrame({"カテゴリ": CATEGORY_OPTIONS, "件数": [
         sum(row["category"] == category for row in rows) for category in CATEGORIES
     ]})
     st.bar_chart(counts, x="カテゴリ", y="件数", horizontal=True, color="#367b70")
@@ -149,21 +181,23 @@ def dashboard(store, account, demo=False):
 
     st.header("メール一覧")
     left, middle, right = st.columns(3)
-    categories = left.multiselect("カテゴリ", CATEGORIES, key=f"categories-{demo}")
-    priorities = middle.multiselect("優先度", PRIORITIES, key=f"priorities-{demo}")
-    ascending = right.selectbox("受信日時順", ("新しい順", "古い順"), key=f"order-{demo}") == "古い順"
+    category_label = left.selectbox("カテゴリ", CATEGORY_OPTIONS, index=None,
+                                    placeholder="オプションを選択", key=f"category-{demo}")
+    priority = middle.selectbox("優先度", PRIORITIES, index=None,
+                                placeholder="オプションを選択", key=f"priority-{demo}")
+    received_order = right.selectbox("受信日時順", ("新しい順", "古い順"), index=None,
+                                     placeholder="オプションを選択", key=f"order-{demo}")
     query = st.text_input("送信者・件名で検索", key=f"search-{demo}").strip().casefold()
-    filtered = [
-        row for row in rows
-        if (not categories or row["category"] in categories)
-        and (not priorities or row["priority"] in priorities)
-        and (not query or any(query in row[field].casefold() for field in ("sender", "subject")))
-    ]
-    filtered = sort_rows_by_received_at(filtered, oldest_first=ascending)
+    filtered = filter_rows(rows, category_label, priority, query)
+    filtered = sort_rows_by_received_at(filtered, oldest_first=received_order == "古い順")
     if not filtered:
         st.info("表示できるメールがありません。")
         return
-    table = pd.DataFrame([{**row, "received_at": local_time(row["received_at"])} for row in filtered])
+    table = pd.DataFrame([{
+        **row,
+        "received_at": local_time(row["received_at"]),
+        "category": category_display_name(row["category"]),
+    } for row in filtered])
     table = table[list(COLUMNS)].rename(columns=COLUMNS)
     st.dataframe(table, hide_index=True, width="stretch", column_config={
         "Gmailで開く": st.column_config.LinkColumn(display_text="Gmailで開く"),
@@ -186,10 +220,11 @@ def dashboard(store, account, demo=False):
         st.link_button("Message-IDでGmailを検索", row["search_link"])
     key = hashlib.sha256(f"{account}\0{selected}".encode()).hexdigest()
     with st.form(f"edit-{key}"):
-        category = st.selectbox("カテゴリを修正", CATEGORIES, index=CATEGORIES.index(row["category"]))
+        category = st.selectbox("カテゴリを修正", CATEGORY_OPTIONS,
+                                index=CATEGORY_OPTIONS.index(category_display_name(row["category"])))
         priority = st.selectbox("優先度を修正", PRIORITIES, index=PRIORITIES.index(row["priority"]))
         if st.form_submit_button("修正を保存"):
-            store.update(account, selected, category, priority)
+            store.update(account, selected, category_internal_name(category), priority)
             st.rerun()
 
 

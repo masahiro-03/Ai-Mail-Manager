@@ -2,6 +2,8 @@
 
 メールで届く問い合わせを、確認・分類・優先順位付け・一覧化するためのStreamlitアプリです。応募ポートフォリオとして、公開版は**架空データだけ**を用いる安全なデモに限定しています。
 
+公開デモ: [https://ai-mail-manager-masahiro.streamlit.app/](https://ai-mail-manager-masahiro.streamlit.app/)
+
 ## 開発背景
 
 問い合わせ窓口では、メールを読み、内容と緊急度を判断し、管理表へ転記する作業が繰り返されます。AI Mail Managerは、この最初の仕分けを支援し、対応漏れの防止と優先順位の共有を目指して作成しました。AIの判断をそのまま確定せず、分類理由・推奨対応を確認し、担当者がカテゴリと優先度を修正できる設計です。
@@ -15,11 +17,11 @@
 
 ## 公開デモ
 
-Streamlit Community Cloudでは `app.py` を起動します。この入口は `AI_MAIL_MANAGER_PUBLIC_DEMO=1` を強制し、架空データ画面だけを表示します。
+Streamlit Community Cloudでは `app.py` を起動します。この入口は `run_app(public_demo=True)` を明示的に呼び、架空データ画面だけを表示します。
 
 - Gmail OAuth、Gmail API、OpenAI APIは公開デモから呼び出しません
 - 認証ファイル、APIキー、トークン、実メール、SQLiteデータベースはリポジトリに含めません
-- 検索、カテゴリ・優先度フィルター、並び替え、手動修正、CSV出力を操作できます
+- 検索、単一選択のカテゴリ・優先度フィルター、日時順の並び替え、手動修正、CSV出力を操作できます
 
 ## 機能
 

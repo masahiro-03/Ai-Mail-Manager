@@ -1,6 +1,8 @@
 import base64
+import inspect
+import runpy
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import httplib2
 import httpx
@@ -8,7 +10,6 @@ import pytest
 from google.auth.exceptions import RefreshError
 from googleapiclient.errors import HttpError
 from openai import APIConnectionError
-from streamlit.testing.v1 import AppTest
 
 from app import classification, gmail
 from app.config import is_public_demo
@@ -16,7 +17,16 @@ from app.classification import CATEGORIES, Classification, Classifier, rules
 from app.gmail import MAIL_SCOPE_QUERIES, gmail_links, gmail_query_for, parse_message
 from app.storage import Store
 from app.sync import AuthError, SyncError, mailbox_account, sync
-from app.ui import sort_rows_by_received_at
+from app.ui import (
+    CATEGORY_BY_DISPLAY_NAME,
+    CATEGORY_OPTIONS,
+    category_display_name,
+    category_internal_name,
+    dashboard,
+    filter_rows,
+    safe_csv_cell,
+    sort_rows_by_received_at,
+)
 
 
 def part(mime, body, charset="utf-8", **extra):
@@ -91,6 +101,31 @@ def test_category_labels_are_consistent_and_selectable():
     assert "システム障害・不具合" in CATEGORIES
     assert all(not category.startswith("・") for category in CATEGORIES)
     assert "・" in CATEGORIES[0]
+
+
+def test_category_display_names_map_to_stable_internal_categories():
+    assert CATEGORY_OPTIONS == ("システム障害", "支払い", "契約", "一般", "その他")
+    assert CATEGORY_BY_DISPLAY_NAME == {
+        "システム障害": "システム障害・不具合",
+        "支払い": "請求・支払い",
+        "契約": "見積・契約",
+        "一般": "一般問い合わせ",
+        "その他": "その他",
+    }
+    assert category_display_name("システム障害・不具合") == "システム障害"
+    assert category_internal_name("システム障害") == "システム障害・不具合"
+
+
+def test_single_select_filters_and_no_selection_shows_all_rows():
+    rows = [
+        {"sender": "a@example.com", "subject": "障害", "category": "システム障害・不具合", "priority": "高"},
+        {"sender": "b@example.com", "subject": "請求", "category": "請求・支払い", "priority": "中"},
+        {"sender": "c@example.com", "subject": "契約", "category": "見積・契約", "priority": "低"},
+    ]
+    assert filter_rows(rows) == rows
+    assert filter_rows(rows, category_label="システム障害") == [rows[0]]
+    assert filter_rows(rows, priority="中") == [rows[1]]
+    assert filter_rows(rows, category_label="契約", priority="低") == [rows[2]]
 
 
 def test_received_at_sort_uses_datetime_not_text_order():
@@ -228,30 +263,20 @@ def test_openai_structured_output_masking(monkeypatch):
     assert result.prompt_version == classification.PROMPT_VERSION
 
 
-def test_demo_screen_search_and_edit():
-    script = Path(__file__).resolve().parents[1] / "app" / "ui.py"
-    app = AppTest.from_file(script, default_timeout=20).run()
-    assert not app.exception
-    assert app.button[0].label == "Gmailに接続"
-    app.radio[0].set_value("架空データのデモ").run()
-    assert not app.exception
-    assert len(app.dataframe[0].value) == 5
-    app.text_input[0].set_value("見積").run()
-    assert len(app.dataframe[0].value) == 1
-    app.selectbox[1].select("3").run()
-    app.selectbox[2].set_value("その他")
-    app.selectbox[3].set_value("低")
-    app.button[0].click().run()
-    assert not app.exception
-    assert app.dataframe[0].value.iloc[0]["カテゴリ"] == "その他"
-    assert app.dataframe[0].value.iloc[0]["優先度"] == "低"
+def test_dashboard_uses_single_select_filters():
+    source = inspect.getsource(dashboard)
+    assert "multiselect" not in source
+    assert source.count("selectbox") >= 4
+    assert source.count('placeholder="オプションを選択"') == 3
 
 
-def test_public_entrypoint_uses_fabricated_data_only():
+def test_csv_export_preserves_display_values_and_blocks_formula_injection():
+    assert safe_csv_cell("システム障害") == "システム障害"
+    assert safe_csv_cell("=danger") == "'=danger"
+
+
+def test_public_entrypoint_invokes_fabricated_data_only():
     script = Path(__file__).resolve().parents[1] / "app.py"
-    app = AppTest.from_file(script, default_timeout=20).run()
-    assert not app.exception
-    assert app.title[0].value == "AI Mail Manager"
-    assert len(app.dataframe[0].value) == 5
-    assert all(button.label != "Gmailに接続" for button in app.button)
-    assert not app.radio
+    with patch("app.ui.run_app") as run_app:
+        runpy.run_path(str(script))
+    run_app.assert_called_once_with(public_demo=True)
