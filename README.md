@@ -109,7 +109,7 @@ APIキーが設定されていない場合でも、ルールベースの分類�
 ### 1. リポジトリの取得
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/ai-mail-manager.git
+git clone https://github.com/masahiro-03/ai-mail-manager.git
 cd ai-mail-manager
 ```
 
