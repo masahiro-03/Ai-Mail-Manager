@@ -12,10 +12,11 @@ from streamlit.testing.v1 import AppTest
 
 from app import classification, gmail
 from app.config import is_public_demo
-from app.classification import Classification, Classifier, rules
+from app.classification import CATEGORIES, Classification, Classifier, rules
 from app.gmail import MAIL_SCOPE_QUERIES, gmail_links, gmail_query_for, parse_message
 from app.storage import Store
 from app.sync import AuthError, SyncError, mailbox_account, sync
+from app.ui import sort_rows_by_received_at
 
 
 def part(mime, body, charset="utf-8", **extra):
@@ -83,6 +84,23 @@ def test_mail_scope_query_mapping(scope, query):
 
 def test_mail_scope_default_is_inbox():
     assert next(iter(MAIL_SCOPE_QUERIES)) == "受信トレイのすべて"
+
+
+def test_category_labels_are_consistent_and_selectable():
+    assert CATEGORIES[0] == "システム障害・不具合"
+    assert "システム障害・不具合" in CATEGORIES
+    assert all(not category.startswith("・") for category in CATEGORIES)
+    assert "・" in CATEGORIES[0]
+
+
+def test_received_at_sort_uses_datetime_not_text_order():
+    rows = [
+        {"message_id": "late", "received_at": "2026-01-15T03:00:00+00:00"},
+        {"message_id": "early", "received_at": "2026-01-15T10:00:00+09:00"},
+        {"message_id": "middle", "received_at": "2026-01-15T02:00:00+00:00"},
+    ]
+    assert [row["message_id"] for row in sort_rows_by_received_at(rows)] == ["late", "middle", "early"]
+    assert [row["message_id"] for row in sort_rows_by_received_at(rows, oldest_first=True)] == ["early", "middle", "late"]
 
 
 @pytest.mark.parametrize(("value", "expected"), [

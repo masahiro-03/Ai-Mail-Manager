@@ -11,7 +11,11 @@ from app.core import classify
 
 Category = Literal["システム障害・不具合", "請求・支払い", "見積・契約", "一般問い合わせ", "その他"]
 Priority = Literal["高", "中", "低"]
-CATEGORIES = get_args(Category)
+# These strings are both the persisted identifiers and the UI labels. Keep a
+# middle dot only when it joins words; no category label starts with one.
+CATEGORIES: tuple[Category, ...] = (
+    "システム障害・不具合", "請求・支払い", "見積・契約", "一般問い合わせ", "その他",
+)
 PRIORITIES = get_args(Priority)
 PROMPT_VERSION = "1"
 DEFAULT_MODEL = "gpt-4.1-mini"

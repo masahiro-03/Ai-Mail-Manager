@@ -31,6 +31,18 @@ def local_time(value):
     return datetime.fromisoformat(value).astimezone(JST).strftime("%Y/%m/%d %H:%M JST") if value else "—"
 
 
+def received_at_datetime(value):
+    """Convert stored ISO 8601 text into a consistently comparable instant."""
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def sort_rows_by_received_at(rows, oldest_first=False):
+    return sorted(rows, key=lambda row: received_at_datetime(row["received_at"]), reverse=not oldest_first)
+
+
 def demo_store():
     if "demo_dir" not in st.session_state:
         st.session_state.demo_dir = TemporaryDirectory(prefix="route-team-demo-")
@@ -147,7 +159,7 @@ def dashboard(store, account, demo=False):
         and (not priorities or row["priority"] in priorities)
         and (not query or any(query in row[field].casefold() for field in ("sender", "subject")))
     ]
-    filtered.sort(key=lambda row: row["received_at"], reverse=not ascending)
+    filtered = sort_rows_by_received_at(filtered, oldest_first=ascending)
     if not filtered:
         st.info("表示できるメールがありません。")
         return
