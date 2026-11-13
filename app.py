@@ -1,12 +1,8 @@
-"""Streamlit Community Cloud entry point for the public portfolio demo.
+"""Streamlit Community Cloud entry point for the public portfolio demo."""
 
-The full Gmail integration remains available locally through ``app/ui.py``.
-This entry point deliberately enables only fabricated demo data before loading
-the shared UI, so a public deployment cannot start OAuth or call OpenAI.
-"""
+from app.ui import run_app
 
-import os
 
-os.environ["AI_MAIL_MANAGER_PUBLIC_DEMO"] = "1"
-
-import app.ui  # noqa: F401  - Streamlit renders the module at import time.
+# Explicitly call the renderer instead of relying on module-import side effects.
+# The public entry point never exposes Gmail, OpenAI, or local-mail storage.
+run_app(public_demo=True)

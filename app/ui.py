@@ -22,7 +22,6 @@ from app.sync import LIMITS, AuthError, SyncError, mailbox_account, sync
 
 JST = timezone(timedelta(hours=9))
 DEMO = "demo"
-PUBLIC_DEMO = is_public_demo()
 COLUMNS = {
     "received_at": "受信日時", "sender": "送信者", "subject": "件名",
     "category": "カテゴリ", "priority": "優先度", "summary": "要約",
@@ -182,13 +181,19 @@ def dashboard(store, account, demo=False):
             st.rerun()
 
 
-st.set_page_config(page_title="問い合わせ管理", page_icon="📨", layout="wide")
-st.title("AI Mail Manager")
-try:
-    if PUBLIC_DEMO:
-        st.caption("採用選考向け公開デモ｜架空データのみを使用し、Gmail・OpenAIなど外部サービスには接続しません。")
-        dashboard(demo_store(), DEMO, demo=True)
-    else:
+def run_app(public_demo=None):
+    """Render either the safe public demo or the full local-only application."""
+    if public_demo is None:
+        public_demo = is_public_demo()
+
+    st.set_page_config(page_title="問い合わせ管理", page_icon="📨", layout="wide")
+    st.title("AI Mail Manager")
+    try:
+        if public_demo:
+            st.caption("採用選考向け公開デモ｜架空データのみを使用し、Gmail・OpenAIなど外部サービスには接続しません。")
+            dashboard(demo_store(), DEMO, demo=True)
+            return
+
         mode = st.radio("データソース", ["Gmail連携", "架空データのデモ", "従来のCSVデモ"], horizontal=True)
         if mode == "Gmail連携":
             store, account = gmail_controls()
@@ -200,5 +205,9 @@ try:
         else:
             from app.legacy import render_legacy
             render_legacy()
-except sqlite3.Error:
-    st.error("データベースを読み書きできませんでした。保存先と空き容量を確認してください。")
+    except sqlite3.Error:
+        st.error("データベースを読み書きできませんでした。保存先と空き容量を確認してください。")
+
+
+if __name__ == "__main__":
+    run_app()
