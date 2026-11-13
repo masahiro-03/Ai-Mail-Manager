@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 
 CATEGORIES = {
-    '障害・不具合': ('障害', 'エラー', 'ログインでき', '動かない', '不具合'),
+    'システム障害・不具合': ('障害', 'エラー', 'ログインでき', '動かない', '不具合'),
     '請求・支払い': ('請求', '支払', '領収書', '振込'),
     '見積・契約': ('見積', '契約', '料金', '価格'),
 }
@@ -15,7 +15,7 @@ def classify(subject: str, body: str) -> dict:
     category = max(scores, key=scores.get)
     if scores[category] == 0:
         category = '一般問い合わせ'
-    priority = '高' if category == '障害・不具合' else '通常'
+    priority = '高' if category == 'システム障害・不具合' else '通常'
     return {'category': category, 'priority': priority, 'reason': 'キーワードに基づく分類' if category != '一般問い合わせ' else '該当キーワードなし'}
 
 def init_db(path):

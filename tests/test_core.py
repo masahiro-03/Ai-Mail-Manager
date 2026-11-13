@@ -2,7 +2,7 @@ import csv
 from app.core import classify, process_csv, get_rows
 
 def test_error():
-    assert classify('ログインできない', 'エラーが出ます')['category'] == '障害・不具合'
+    assert classify('ログインできない', 'エラーが出ます')['category'] == 'システム障害・不具合'
 
 def test_billing():
     assert classify('領収書', '支払いを確認')['category'] == '請求・支払い'
