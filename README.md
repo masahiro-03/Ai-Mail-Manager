@@ -4,6 +4,16 @@
 
 公開デモ: [https://ai-mail-manager-masahiro.streamlit.app/](https://ai-mail-manager-masahiro.streamlit.app/)
 
+## スクリーンショット
+
+### ダッシュボード
+
+![ダッシュボード](docs/images/dashboard.png)
+
+### 問い合わせ一覧
+
+![問い合わせ一覧](docs/images/mail-list.png)
+
 ## 開発背景
 
 問い合わせ窓口では、メールを読み、内容と緊急度を判断し、管理表へ転記する作業が繰り返されます。AI Mail Managerは、この最初の仕分けを支援し、対応漏れの防止と優先順位の共有を目指して作成しました。AIの判断をそのまま確定せず、分類理由・推奨対応を確認し、担当者がカテゴリと優先度を修正できる設計です。
